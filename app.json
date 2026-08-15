@@ -38,6 +38,24 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Smart Waste Reporting to access your camera to capture evidence photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Smart Waste Reporting to use your location to tag reports."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Smart Waste Reporting to access your microphone to record voice reports."
+        }
       ]
     ],
     "experiments": {
