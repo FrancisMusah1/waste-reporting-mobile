@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio, Video } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -17,8 +18,6 @@ export default function ReportDetails() {
   const router = useRouter();
   const { photoUri, videoUri, latitude, longitude } = useLocalSearchParams();
 
-  // Whether this report was captured as a photo or a video determines
-  // whether we show the voice-note option at all
   const isVideo = !!videoUri;
 
   const [category, setCategory] = useState("");
@@ -107,6 +106,12 @@ export default function ReportDetails() {
     setSubmitting(true);
 
     try {
+      // Check whether this device has an active logged-in session.
+      // If so, submit to the authenticated endpoint (attributed to
+      // their account); otherwise fall back to the guest endpoint.
+      const token = await AsyncStorage.getItem("token");
+      const endpoint = token ? "/reports" : "/reports/guest";
+
       const formData = new FormData();
       formData.append("category", category);
       formData.append("description", description);
@@ -114,7 +119,6 @@ export default function ReportDetails() {
       formData.append("latitude", latitude || "");
       formData.append("longitude", longitude || "");
 
-      // Attach whichever media type was actually captured
       if (isVideo) {
         formData.append("video", {
           uri: videoUri,
@@ -137,8 +141,9 @@ export default function ReportDetails() {
         }
       }
 
-      const response = await fetch(`${API_URL}/reports/guest`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
@@ -205,7 +210,6 @@ export default function ReportDetails() {
         onChangeText={setLocation}
       />
 
-      {/* Voice note is only offered for photo reports */}
       {!isVideo && (
         <>
           <Text style={styles.label}>Voice Note (optional)</Text>
