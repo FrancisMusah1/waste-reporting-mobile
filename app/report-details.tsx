@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio, Video } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -13,6 +14,26 @@ import {
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const CATEGORIES = ["Blocked Drain", "Illegal Dumping", "Overflowing Bin", "Other"];
+
+// Wraps fetch with a real timeout (via AbortController) and one automatic
+// retry. React Native's fetch has no reliable built-in timeout, so without
+// this, a slow/cold server just hangs until the OS gives up inconsistently.
+async function fetchWithRetry(url, options, { timeoutMs = 60000, retries = 1 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return response;
+    } catch (err) {
+      clearTimeout(timer);
+      const isLastAttempt = attempt === retries;
+      if (isLastAttempt) throw err;
+    
+    }
+  }
+}
 
 export default function ReportDetails() {
   const router = useRouter();
@@ -141,11 +162,17 @@ export default function ReportDetails() {
         }
       }
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
+      // Video uploads take longer (bigger payload + possible cold start),
+      // so give them a longer timeout than photo-only submissions.
+      const response = await fetchWithRetry(
+        `${API_URL}${endpoint}`,
+        {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        },
+        { timeoutMs: isVideo ? 90000 : 60000, retries: 1 }
+      );
 
       const data = await response.json();
 
@@ -164,93 +191,125 @@ export default function ReportDetails() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      {isVideo ? (
-        <Video
-          source={{ uri: videoUri }}
-          style={styles.preview}
-          useNativeControls
-          isLooping
-        />
-      ) : (
-        <Image source={{ uri: photoUri }} style={styles.preview} />
-      )}
-
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.categoryRow}>
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <View style={styles.screen}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={22} color="#F5F2EA" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>New Report</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
-      <Text style={styles.label}>Description (optional)</Text>
-      <TextInput
-        style={styles.textArea}
-        placeholder="Describe what you saw..."
-        placeholderTextColor="#6b7d72"
-        multiline
-        value={description}
-        onChangeText={setDescription}
-      />
+      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
+        {isVideo ? (
+          <Video
+            source={{ uri: videoUri }}
+            style={styles.preview}
+            useNativeControls
+            isLooping
+          />
+        ) : (
+          <Image source={{ uri: photoUri }} style={styles.preview} />
+        )}
 
-      <Text style={styles.label}>Location details (optional)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. Near Madina Market"
-        placeholderTextColor="#6b7d72"
-        value={location}
-        onChangeText={setLocation}
-      />
-
-      {!isVideo && (
-        <>
-          <Text style={styles.label}>Voice Note (optional)</Text>
-          {!audioUri ? (
+        <Text style={styles.label}>Category</Text>
+        <View style={styles.categoryRow}>
+          {CATEGORIES.map((cat) => (
             <TouchableOpacity
-              style={[styles.micButton, isRecording && styles.micButtonActive]}
-              onPress={isRecording ? stopRecording : startRecording}
+              key={cat}
+              style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
+              onPress={() => setCategory(cat)}
             >
-              <Text style={styles.micButtonText}>
-                {isRecording ? "⏹ Stop Recording" : "🎤 Hold to Record a Voice Note"}
+              <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
+                {cat}
               </Text>
             </TouchableOpacity>
-          ) : (
-            <View style={styles.audioReview}>
-              <TouchableOpacity style={styles.playButton} onPress={playRecording} disabled={isPlaying}>
-                <Text style={styles.playButtonText}>{isPlaying ? "▶ Playing..." : "▶ Play"}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={discardRecording}>
-                <Text style={styles.discardText}>Discard</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
-      )}
+          ))}
+        </View>
 
-      <TouchableOpacity
-        style={styles.submitButton}
-        onPress={handleSubmit}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color="#0B1830" />
-        ) : (
-          <Text style={styles.submitButtonText}>Submit Report</Text>
+        <Text style={styles.label}>Description (optional)</Text>
+        <TextInput
+          style={styles.textArea}
+          placeholder="Describe what you saw..."
+          placeholderTextColor="#6b7d72"
+          multiline
+          value={description}
+          onChangeText={setDescription}
+        />
+
+        <Text style={styles.label}>Location details (optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Near Madina Market"
+          placeholderTextColor="#6b7d72"
+          value={location}
+          onChangeText={setLocation}
+        />
+
+        {!isVideo && (
+          <>
+            <Text style={styles.label}>Voice Note (optional)</Text>
+            {!audioUri ? (
+              <TouchableOpacity
+                style={[styles.micButton, isRecording && styles.micButtonActive]}
+                onPress={isRecording ? stopRecording : startRecording}
+              >
+                <Text style={styles.micButtonText}>
+                  {isRecording ? "⏹ Stop Recording" : "🎤 Hold to Record a Voice Note"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.audioReview}>
+                <TouchableOpacity style={styles.playButton} onPress={playRecording} disabled={isPlaying}>
+                  <Text style={styles.playButtonText}>{isPlaying ? "▶ Playing..." : "▶ Play"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={discardRecording}>
+                  <Text style={styles.discardText}>Discard</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         )}
-      </TouchableOpacity>
-    </ScrollView>
+
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#0B1830" />
+          ) : (
+            <Text style={styles.submitButtonText}>Submit Report</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: "#0B1830" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 56,
+    paddingBottom: 14,
+    paddingHorizontal: 12,
+    backgroundColor: "#0B1830",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(245,242,234,0.08)",
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(245,242,234,0.06)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: { color: "#F5F2EA", fontSize: 16, fontWeight: "700" },
+  headerSpacer: { width: 38 },
   container: { flex: 1, backgroundColor: "#0B1830" },
   preview: { width: "100%", height: 200, borderRadius: 12, marginBottom: 20, backgroundColor: "#000" },
   label: { color: "#F5F2EA", fontWeight: "600", marginBottom: 8, marginTop: 12 },

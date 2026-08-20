@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Video } from "expo-av";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import * as Location from "expo-location";
@@ -29,6 +30,9 @@ export default function ReportGuest() {
   if (!permission.granted || !micPermission.granted) {
     return (
       <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={22} color="#F5F2EA" />
+        </TouchableOpacity>
         <Text style={styles.text}>We need camera and microphone access to let you report issues with photo or video.</Text>
         <TouchableOpacity
           style={styles.button}
@@ -146,6 +150,14 @@ export default function ReportGuest() {
             mode={mode}
           />
 
+          {/* Back button — only shown when not actively recording, so a
+              mid-recording tap can't accidentally strand the video */}
+          {!isRecording && (
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={22} color="#F5F2EA" />
+            </TouchableOpacity>
+          )}
+
           {/* Photo/Video mode toggle, only visible before capturing */}
           {!isRecording && (
             <View style={styles.modeToggle}>
@@ -204,6 +216,12 @@ export default function ReportGuest() {
             />
           )}
 
+          {/* Back button in review state too — retake/continue aren't the
+              only ways out; someone may want to abandon the report entirely */}
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={22} color="#F5F2EA" />
+          </TouchableOpacity>
+
           <View style={styles.locationBar}>
             {locating ? (
               <>
@@ -239,6 +257,18 @@ const styles = StyleSheet.create({
   text: { color: "#F5F2EA", textAlign: "center", margin: 24, fontSize: 15 },
   button: { backgroundColor: "#F4A825", padding: 14, borderRadius: 10, marginHorizontal: 24, alignItems: "center" },
   buttonText: { color: "#0B1830", fontWeight: "700" },
+  backButton: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(11,24,48,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
   modeToggle: {
     position: "absolute",
     bottom: 130,
