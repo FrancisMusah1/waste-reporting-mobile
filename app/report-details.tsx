@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio, Video } from "expo-av";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -13,7 +14,12 @@ import {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-const CATEGORIES = ["Blocked Drain", "Illegal Dumping", "Overflowing Bin", "Other"];
+const CATEGORIES = [
+  { label: "Blocked Drain", icon: "water-outline" },
+  { label: "Illegal Dumping", icon: "trash-outline" },
+  { label: "Overflowing Bin", icon: "warning-outline" },
+  { label: "Other", icon: "ellipsis-horizontal-outline" },
+];
 
 // Wraps fetch with a real timeout (via AbortController) and one automatic
 // retry. React Native's fetch has no reliable built-in timeout, so without
@@ -185,7 +191,7 @@ export default function ReportDetails() {
   }
 
   return (
-    <View style={styles.screen}>
+    <LinearGradient colors={["#0B1830", "#0F2A3D", "#0B1830"]} style={styles.screen}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#F5F2EA" />
@@ -194,28 +200,45 @@ export default function ReportDetails() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-        {isVideo ? (
-          <Video
-            source={{ uri: videoUri }}
-            style={styles.preview}
-            useNativeControls
-            isLooping
-          />
-        ) : (
-          <Image source={{ uri: photoUri }} style={styles.preview} />
-        )}
+      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        <View style={styles.previewWrapper}>
+          {isVideo ? (
+            <Video
+              source={{ uri: videoUri }}
+              style={styles.preview}
+              useNativeControls
+              isLooping
+            />
+          ) : (
+            <Image source={{ uri: photoUri }} style={styles.preview} />
+          )}
+          <View style={styles.previewBadge}>
+            <Ionicons name={isVideo ? "videocam" : "camera"} size={13} color="#F5F2EA" />
+            <Text style={styles.previewBadgeText}>{isVideo ? "Video" : "Photo"}</Text>
+          </View>
+        </View>
 
-        <Text style={styles.label}>Category (optional)</Text>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="pricetag-outline" size={16} color="#8B93A7" />
+          <Text style={styles.label}>Category</Text>
+          <Text style={styles.optionalTag}>optional</Text>
+        </View>
         <View style={styles.categoryRow}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity
-              key={cat}
-              style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-              onPress={() => setCategory(category === cat ? "" : cat)}
+              key={cat.label}
+              style={[styles.categoryChip, category === cat.label && styles.categoryChipActive]}
+              onPress={() => setCategory(category === cat.label ? "" : cat.label)}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
-                {cat}
+              <Ionicons
+                name={cat.icon}
+                size={15}
+                color={category === cat.label ? "#0B1830" : "#8B93A7"}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.categoryText, category === cat.label && styles.categoryTextActive]}>
+                {cat.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -223,23 +246,43 @@ export default function ReportDetails() {
 
         {!isVideo && (
           <>
-            <Text style={styles.label}>Voice Note (optional)</Text>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="mic-outline" size={16} color="#8B93A7" />
+              <Text style={styles.label}>Voice Note</Text>
+              <Text style={styles.optionalTag}>optional</Text>
+            </View>
+
             {!audioUri ? (
               <TouchableOpacity
                 style={[styles.micButton, isRecording && styles.micButtonActive]}
                 onPress={isRecording ? stopRecording : startRecording}
+                activeOpacity={0.85}
               >
+                <View style={[styles.micIconCircle, isRecording && styles.micIconCircleActive]}>
+                  <Ionicons
+                    name={isRecording ? "stop" : "mic"}
+                    size={20}
+                    color={isRecording ? "#FF6B6B" : "#F4A825"}
+                  />
+                </View>
                 <Text style={styles.micButtonText}>
-                  {isRecording ? "⏹ Stop Recording" : "🎤 Hold to Record a Voice Note"}
+                  {isRecording ? "Recording... Tap to stop" : "Tap to record a voice note"}
                 </Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.audioReview}>
                 <TouchableOpacity style={styles.playButton} onPress={playRecording} disabled={isPlaying}>
-                  <Text style={styles.playButtonText}>{isPlaying ? "▶ Playing..." : "▶ Play"}</Text>
+                  <Ionicons
+                    name={isPlaying ? "volume-high" : "play"}
+                    size={16}
+                    color="#0B1830"
+                  />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={discardRecording}>
-                  <Text style={styles.discardText}>Discard</Text>
+                <Text style={styles.audioLabel}>
+                  {isPlaying ? "Playing voice note..." : "Voice note recorded"}
+                </Text>
+                <TouchableOpacity onPress={discardRecording} style={styles.discardButton}>
+                  <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
                 </TouchableOpacity>
               </View>
             )}
@@ -250,20 +293,24 @@ export default function ReportDetails() {
           style={styles.submitButton}
           onPress={handleSubmit}
           disabled={submitting}
+          activeOpacity={0.85}
         >
           {submitting ? (
             <ActivityIndicator color="#0B1830" />
           ) : (
-            <Text style={styles.submitButtonText}>Submit Report</Text>
+            <>
+              <Text style={styles.submitButtonText}>Submit Report</Text>
+              <Ionicons name="arrow-forward" size={18} color="#0B1830" style={{ marginLeft: 6 }} />
+            </>
           )}
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0B1830" },
+  screen: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -271,9 +318,6 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 14,
     paddingHorizontal: 12,
-    backgroundColor: "#0B1830",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(245,242,234,0.08)",
   },
   backButton: {
     width: 38,
@@ -285,55 +329,111 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: "#F5F2EA", fontSize: 16, fontWeight: "700" },
   headerSpacer: { width: 38 },
-  container: { flex: 1, backgroundColor: "#0B1830" },
-  preview: { width: "100%", height: 200, borderRadius: 12, marginBottom: 20, backgroundColor: "#000" },
-  label: { color: "#F5F2EA", fontWeight: "600", marginBottom: 8, marginTop: 12 },
-  categoryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
-  categoryChip: {
-    borderWidth: 1,
-    borderColor: "#8B93A7",
+  container: { flex: 1 },
+  previewWrapper: { position: "relative", marginBottom: 24 },
+  preview: { width: "100%", height: 220, borderRadius: 16, backgroundColor: "#000" },
+  previewBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(11,24,48,0.75)",
     borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  previewBadgeText: { color: "#F5F2EA", fontSize: 11.5, fontWeight: "600" },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  label: { color: "#F5F2EA", fontWeight: "700", fontSize: 14.5 },
+  optionalTag: { color: "#5C6B84", fontSize: 11.5, fontStyle: "italic" },
+  categoryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(245,242,234,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(245,242,234,0.15)",
+    borderRadius: 22,
+    paddingVertical: 9,
+    paddingHorizontal: 15,
   },
   categoryChipActive: { backgroundColor: "#F4A825", borderColor: "#F4A825" },
-  categoryText: { color: "#F5F2EA", fontSize: 13 },
+  categoryText: { color: "#F5F2EA", fontSize: 13, fontWeight: "500" },
   categoryTextActive: { color: "#0B1830", fontWeight: "700" },
   micButton: {
-    borderWidth: 1,
-    borderColor: "#8B93A7",
-    borderRadius: 10,
-    paddingVertical: 14,
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "rgba(245,242,234,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(245,242,234,0.15)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 24,
   },
   micButtonActive: {
-    borderColor: "#e53935",
-    backgroundColor: "rgba(229,57,53,0.12)",
+    borderColor: "rgba(255,107,107,0.4)",
+    backgroundColor: "rgba(255,107,107,0.08)",
   },
-  micButtonText: { color: "#F5F2EA", fontWeight: "600" },
+  micIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(244,168,37,0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  micIconCircleActive: { backgroundColor: "rgba(255,107,107,0.15)" },
+  micButtonText: { color: "#F5F2EA", fontWeight: "600", fontSize: 14 },
   audioReview: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    backgroundColor: "rgba(245,242,234,0.08)",
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: "rgba(74,222,128,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.25)",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 24,
   },
   playButton: {
-    backgroundColor: "#F4A825",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  playButtonText: { color: "#0B1830", fontWeight: "700" },
-  discardText: { color: "#e53935", fontWeight: "600" },
-  submitButton: {
-    backgroundColor: "#F4A825",
-    borderRadius: 12,
-    paddingVertical: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#4ADE80",
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: 28,
-    marginBottom: 40,
+    marginRight: 12,
+  },
+  audioLabel: { color: "#F5F2EA", fontSize: 13, fontWeight: "500", flex: 1 },
+  discardButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,107,107,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  submitButton: {
+    flexDirection: "row",
+    backgroundColor: "#F4A825",
+    borderRadius: 14,
+    paddingVertical: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    shadowColor: "#F4A825",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   submitButtonText: { color: "#0B1830", fontWeight: "700", fontSize: 16 },
 });
