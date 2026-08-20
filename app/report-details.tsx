@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Image, ScrollView,
   StyleSheet,
-  Text, TextInput, TouchableOpacity,
+  Text, TouchableOpacity,
   View
 } from "react-native";
 
@@ -42,8 +42,6 @@ export default function ReportDetails() {
   const isVideo = !!videoUri;
 
   const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const [recording, setRecording] = useState(null);
@@ -119,11 +117,6 @@ export default function ReportDetails() {
   }
 
   async function handleSubmit() {
-    if (!category) {
-      alert("Please select a category");
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -134,9 +127,10 @@ export default function ReportDetails() {
       const endpoint = token ? "/reports" : "/reports/guest";
 
       const formData = new FormData();
-      formData.append("category", category);
-      formData.append("description", description);
-      formData.append("location", location || "Not specified");
+      // Category is optional — send it only if the user tapped one.
+      // Description and location are no longer collected: voice notes
+      // cover description, and GPS (from EXIF or device) covers location.
+      if (category) formData.append("category", category);
       formData.append("latitude", latitude || "");
       formData.append("longitude", longitude || "");
 
@@ -212,13 +206,13 @@ export default function ReportDetails() {
           <Image source={{ uri: photoUri }} style={styles.preview} />
         )}
 
-        <Text style={styles.label}>Category</Text>
+        <Text style={styles.label}>Category (optional)</Text>
         <View style={styles.categoryRow}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity
               key={cat}
               style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-              onPress={() => setCategory(cat)}
+              onPress={() => setCategory(category === cat ? "" : cat)}
             >
               <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
                 {cat}
@@ -226,25 +220,6 @@ export default function ReportDetails() {
             </TouchableOpacity>
           ))}
         </View>
-
-        <Text style={styles.label}>Description (optional)</Text>
-        <TextInput
-          style={styles.textArea}
-          placeholder="Describe what you saw..."
-          placeholderTextColor="#6b7d72"
-          multiline
-          value={description}
-          onChangeText={setDescription}
-        />
-
-        <Text style={styles.label}>Location details (optional)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Near Madina Market"
-          placeholderTextColor="#6b7d72"
-          value={location}
-          onChangeText={setLocation}
-        />
 
         {!isVideo && (
           <>
@@ -324,20 +299,6 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: "#F4A825", borderColor: "#F4A825" },
   categoryText: { color: "#F5F2EA", fontSize: 13 },
   categoryTextActive: { color: "#0B1830", fontWeight: "700" },
-  textArea: {
-    backgroundColor: "rgba(245,242,234,0.08)",
-    borderRadius: 10,
-    padding: 12,
-    color: "#F5F2EA",
-    height: 90,
-    textAlignVertical: "top",
-  },
-  input: {
-    backgroundColor: "rgba(245,242,234,0.08)",
-    borderRadius: 10,
-    padding: 12,
-    color: "#F5F2EA",
-  },
   micButton: {
     borderWidth: 1,
     borderColor: "#8B93A7",
